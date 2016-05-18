@@ -17,7 +17,7 @@
 import webapp2
 import os
 import jinja2
-
+import time
 from google.appengine.ext import db
 
 template_dir = os.path.join(os.path.dirname(__file__), 'templates')
@@ -42,12 +42,12 @@ class Handler(webapp2.RequestHandler):
 class MainHandler(Handler):
     def render_front(self,  title="", art="", error=""):
 
-	    arts = db.GqlQuery("SELECT * FROM Art ORDER BY created DESC")
+	    arts = db.GqlQuery("SELECT * FROM Art ORDER BY created DESC LIMIT 10")
 	   
 	    self.render("front.html", title=title, art=art, error=error, arts=arts)
 
     def get(self):
-        self.render('front.html')
+        self.render_front()
 
     def post(self):
 	    title = self.request.get("title")
@@ -58,10 +58,12 @@ class MainHandler(Handler):
 		    a = Art(title=title, art=art)
 		    a.put()
 
+		    time.sleep(0.3)
+
 		    self.redirect("/")
 	    else:
 		    error = 'Need to enter both title and art'
-		    self.render_front(title=title, art=art, error=error)
+		    self.render_front(error=error)
 
 app = webapp2.WSGIApplication([
     ('/', MainHandler)
