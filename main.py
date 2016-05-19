@@ -18,6 +18,8 @@ import webapp2
 import os
 import jinja2
 import time
+import urllib2
+from xml.dom import minidom
 from google.appengine.ext import db
 
 template_dir = os.path.join(os.path.dirname(__file__), 'templates')
@@ -39,6 +41,41 @@ class Handler(webapp2.RequestHandler):
 	def render(self, template, **kw):
 		self.write(self.render_str(template, **kw))
 
+def get_coords(xml):
+    TAG_NAME='gml:coordinates'
+    #get the document object from the xml string so you can
+    #parse it using Document methods such as getElementByTagName()
+    doc1 = minidom.parseString(xml)
+
+    #getElementByTagName() will return a NodeList and the item we want is index 0
+    e = doc1.getElementsByTagName(TAG_NAME)
+    i = e.item(0)
+
+    try:
+        if e and i.childNodes[0].nodeValue:
+            coords = str(i.childNodes.item(0).data)
+            coordsList = coords.split(',')
+            return db.GeoPt(coordsList[1],coordsList[0])
+        else:
+            return None
+    except IndexError:
+        return None
+
+IP_URL = "http://api.hostip.info/?ip="
+def get_coord(ip):
+        url = IP_URL + ip
+        content = None
+        try:
+                content = urllib2.urlopen(url).read()
+        except URLError:
+                return
+
+        if content:
+                #parse the returned xml from hostapi.info service
+                #and get the lat,lon tuple
+                get_coords(content)
+                
+        
 class MainHandler(Handler):
     def render_front(self,  title="", art="", error=""):
 
@@ -47,6 +84,7 @@ class MainHandler(Handler):
 	    self.render("front.html", title=title, art=art, error=error, arts=arts)
 
     def get(self):
+        self.write(repr(self.request.remote_addr))
         self.render_front()
 
     def post(self):
@@ -56,10 +94,10 @@ class MainHandler(Handler):
 	    if title and art:
 		    #self.write('thanks')
 		    a = Art(title=title, art=art)
-		    a.put()
-
+		    #get user's co-ordinates from their ip, if it has coordinates
+		    #add then to Art
+		    a.put()   
 		    time.sleep(0.3)
-
 		    self.redirect("/")
 	    else:
 		    error = 'Need to enter both title and art'
