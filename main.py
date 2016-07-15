@@ -19,6 +19,7 @@ import os
 import jinja2
 import time
 import urllib2
+import logging
 from xml.dom import minidom
 from google.appengine.ext import db
 
@@ -74,12 +75,22 @@ def get_coord(ip):
                 #parse the returned xml from hostapi.info service
                 #and get the lat,lon tuple
                 get_coords(content)
-                
-        
+CACHE={}     
+def top_arts():
+          key='top'
+          if key in CACHE:
+              arts=CACHE[key]
+          else:
+              logging.error("DBQUERY")      
+              arts = db.GqlQuery("SELECT * FROM Art ORDER BY created DESC LIMIT 10")
+	      arts = list(arts)
+	      CACHE[key]=arts
+	  return arts
+	    
 class MainHandler(Handler):
     def render_front(self,  title="", art="", error=""):
 
-	    arts = db.GqlQuery("SELECT * FROM Art ORDER BY created DESC LIMIT 10")
+	    arts = top_arts()
 	   
 	    self.render("front.html", title=title, art=art, error=error, arts=arts)
 
